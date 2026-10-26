@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use realmimic, please cite it as below, and cite the SuperMimic paper for the method."
+title: "realmimic: a single-GPU reproduction of SuperMimic with deployment in NVIDIA's SONIC runtime"
+type: software
+version: 1.0.0
+authors:
+  - family-names: Henry
+    given-names: Kevin
+repository-code: "https://github.com/kevinhenryzz/realmimic"
+license: Apache-2.0
+keywords:
+  - humanoid robotics
+  - motion tracking
+  - world models
+  - Unitree G1
+references:
+  - type: article
+    title: "SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model"
+    authors:
+      - family-names: Liao
+        given-names: Qiayuan
+      - family-names: Shao
+        given-names: Yiyang
+      - family-names: Long
+        given-names: Junfeng
+      - family-names: Zakka
+        given-names: Kevin
+      - family-names: Horowitz
+        given-names: Roberto
+      - family-names: Abbeel
+        given-names: Pieter
+      - family-names: Sreenath
+        given-names: Koushil
+    year: 2026
+    identifiers:
+      - type: other
+        value: "arXiv:2610.28480"
+    url: "https://arxiv.org/abs/2610.28480"

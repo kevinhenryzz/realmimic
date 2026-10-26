@@ -1,0 +1,33 @@
+# Downloaded datasets and third-party runtimes (fetched by scripts, never committed)
+/data/
+/third_party/
+
+# Training, evaluation and export outputs
+/logs/
+/runs/
+/outputs/
+/exports/
+*.ckpt
+*.pt
+*.onnx
+*.engine
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+/build/
+/dist/
+
+# C++ / CMake
+cmake-build-*/
+compile_commands.json
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

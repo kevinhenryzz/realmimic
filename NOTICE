@@ -1,0 +1,28 @@
+realmimic
+Copyright 2026 Kevin Henry
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components
+----------------------
+
+src/supermimic/, tests/, scripts/ (training core)
+  Imported from https://github.com/YanYuan98/Supermimic_mod
+  at commit 6932f1cd33532b4e84ff173df926d8195a58c45a, itself a fork of
+  https://github.com/CuboiLeo/SuperMimic-Reproduced.
+  MIT License, Copyright (c) 2026 Yuxi Liu. Full text: LICENSES/MIT-Supermimic_mod.txt.
+  Substantially modified since the import (sampler, world-model state frame, clip-end handling,
+  goal layouts, deployment, evaluation).
+
+deploy/sonic/patches/
+  Patches to NVIDIA GR00T-WholeBodyControl (SONIC), https://github.com/NVlabs/GR00T-WholeBodyControl,
+  Apache License 2.0. The patches modify that project's files and are distributed under its licence.
+  SONIC's release policy and planner weights are not included; they are downloaded from NVIDIA under
+  the NVIDIA Open Model License.
+
+site/vendor/
+  Third-party libraries fetched by tools/fetch_site_vendor.sh (three.js, MIT; MuJoCo WebAssembly,
+  Apache-2.0; ONNX Runtime Web, MIT). Versions and licence texts: site/vendor/README.md.
+
+Method: SuperMimic (Q. Liao et al., CoRL 2026, arXiv:2610.28480). realmimic is an independent,
+unofficial implementation and is not affiliated with the authors.
