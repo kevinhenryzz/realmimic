@@ -1,0 +1,309 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Henry <kevinhenry2027@gmail.com>
+Date: Sat, 24 Oct 2026 17:46:34 +0400
+Subject: [PATCH 2/3] g1_deploy: optional policy output guard and LowState
+ timeout flag
+
+The policy's output went to the motors unchecked: a NaN, Inf or absurd
+action from a broken engine or model became the joint target. With
+--enable-policy-guard (bound 20) or --policy-action-limit <value>, the raw
+network output (IsaacLab order, before action scale and default angles) is
+checked every tick before the motor command is written; a non-finite value
+or |a| above the bound stops control like the O key (damping, then exit) and
+prints the offending index and value. The bound is on the raw action, not
+the joint target, because targets legitimately exceed joint limits with low
+gains.
+
+The NaN/Inf test reads the IEEE-754 bit pattern: the target builds with
+-ffast-math, under which std::isnan/std::isfinite are folded to constants.
+
+--lowstate-timeout-ms makes the existing LowState-age check in
+CheckSafety() configurable (default 500 ms, unchanged), and its message now
+reports the age.
+
+The decision logic lives in safety_checks.{hpp,cpp}, unit tested in
+run_tests.
+---
+ .../include/safety_checks.hpp                 | 35 +++++++++
+ .../src/g1_deploy_onnx_ref.cpp                | 77 +++++++++++++++++--
+ .../g1_deploy_onnx_ref/src/safety_checks.cpp  | 20 +++++
+ .../unit_tests/test_safety_checks.cpp         | 41 ++++++++++
+ 4 files changed, 168 insertions(+), 5 deletions(-)
+ create mode 100644 gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
+ create mode 100644 gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
+ create mode 100644 gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
+
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
+new file mode 100644
+index 0000000..464213f
+--- /dev/null
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
+@@ -0,0 +1,35 @@
++/**
++ * @file safety_checks.hpp
++ * @brief Optional safety checks of the control loop and their decision logic.
++ *
++ * Every check stops control like the operator's O key (damping, then exit).
++ * They are configured from the command line (see main()) and are off by
++ * default unless noted. The logic is kept free of DDS / TensorRT so that it is
++ * unit tested (unit_tests/test_safety_checks.cpp).
++ */
++#pragma once
++
++#include <chrono>
++#include <optional>
++#include <span>
++
++struct SafetyConfig {
++  /// --enable-policy-guard / --policy-action-limit: stop when the policy's raw
++  /// output (before action scale and default angles) is NaN/Inf or exceeds
++  /// this magnitude on any joint.
++  std::optional<float> policy_action_limit;
++  /// --lowstate-timeout-ms: stop when the newest LowState is older than this
++  /// (default: 500 ms, SONIC's threshold).
++  std::chrono::milliseconds lowstate_timeout{500};
++};
++
++/// Default bound of --enable-policy-guard.
++constexpr float kDefaultPolicyActionLimit = 20.0F;
++
++/// False for NaN and +-Inf. Reads the IEEE-754 bit pattern: this target builds
++/// with -ffast-math, under which std::isfinite / std::isnan may be folded away.
++bool is_finite_float(float value);
++
++/// Index of the first element of `action` that is NaN, +-Inf or larger than
++/// `limit` in magnitude; -1 if all are valid.
++int find_invalid_action(std::span<const float> action, float limit);
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
+index b78f625..7148b07 100644
+--- a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
+@@ -106,6 +106,7 @@
+ #include "../include/robot_parameters.hpp"
+ #include "../include/policy_parameters.hpp"
+ #include "../include/motor_gain_scaling.hpp"
++#include "../include/safety_checks.hpp"
+ 
+ // Input interface and input handlers
+ #include "../include/input_interface/keyboard_handler.hpp"
+@@ -298,9 +299,9 @@ class G1Deploy {
+     // Program state and last commanded actions
+     // =========================================================================
+     static constexpr std::chrono::milliseconds LOW_STATE_LATE_THRESHOLD{50};
+-    static constexpr std::chrono::milliseconds LOW_STATE_ABSENT_THRESHOLD{500};
+     ProgramState program_state_;
+     MotorGainScaleConfig motor_gain_scales_;
++    SafetyConfig safety_;
+     std::array<double, G1_NUM_MOTOR> last_action;
+     std::array<double, 7> last_left_hand_action;
+     std::array<double, 7> last_right_hand_action;
+@@ -2182,7 +2183,8 @@ class G1Deploy {
+       bool enable_motion_recording = false,
+       std::array<double, 3> initial_compliance = {0.05, 0.05, 0.0},
+       double initial_max_close_ratio = 1.0,
+-      MotorGainScaleConfig motor_gain_scales = {})
++      MotorGainScaleConfig motor_gain_scales = {},
++      SafetyConfig safety_config = {})
+       : time_(0.0),
+         publish_dt_(0.002),
+         control_dt_(0.02),
+@@ -2195,6 +2197,7 @@ class G1Deploy {
+         disable_crc_check_(disable_crc_check),
+         program_state_(ProgramState::INIT),
+         motor_gain_scales_(motor_gain_scales),
++        safety_(safety_config),
+         last_action {0.0},
+         last_left_hand_action {0.0},
+         last_right_hand_action {0.0},
+@@ -2215,6 +2218,11 @@ class G1Deploy {
+         std::cout << "[INFO] Motor Kd scales (hardware indices): "
+                   << kd_scales << std::endl;
+       }
++      if (safety_.policy_action_limit) {
++        std::cout << "[INFO] Policy guard: stop on NaN/Inf or |raw action| > "
++                  << *safety_.policy_action_limit << std::endl;
++      }
++      std::cout << "[INFO] LowState timeout: " << safety_.lowstate_timeout.count() << " ms" << std::endl;
+       
+       // Initialize ChannelFactory
+       ChannelFactory::Instance()->Init(0, networkInterface);
+@@ -2818,8 +2826,10 @@ class G1Deploy {
+       }
+ 
+       auto now = std::chrono::steady_clock::now();
+-      if (now - low_state_data.timestamp > LOW_STATE_ABSENT_THRESHOLD) {
+-        std::cout << "[ERROR] Lost LowState data connection from robot!" << std::endl;
++      if (now - low_state_data.timestamp > safety_.lowstate_timeout) {
++        std::cout << "[ERROR] Lost LowState data connection from robot! (newest LowState is "
++                  << low_state_data.GetAgeMs() << " ms old, timeout " << safety_.lowstate_timeout.count()
++                  << " ms)" << std::endl;
+         return false;
+       }
+ 
+@@ -3165,6 +3175,18 @@ class G1Deploy {
+       // Access actions from control policy's internal buffer (already populated by Infer)
+       auto& action_buffer = policy_engine_->GetActionBuffer();
+       float* floatarr = action_buffer.data();
++
++      // Policy guard: a non-finite or absurd output never reaches the motors.
++      if (safety_.policy_action_limit) {
++        const int bad = find_invalid_action(std::span<const float>(floatarr, G1_NUM_MOTOR),
++                                            *safety_.policy_action_limit);
++        if (bad >= 0) {
++          std::cout << "[SAFETY] Policy guard tripped: raw action[" << bad << "] = " << floatarr[bad]
++                    << " (NaN/Inf or |a| > " << *safety_.policy_action_limit
++                    << ", policy output order), switching to damping" << std::endl;
++          return false;
++        }
++      }
+       
+       MotorCommand motor_command_tmp;
+       for (int i = 0; i < G1_NUM_MOTOR; i++) {
+@@ -4219,6 +4241,9 @@ int main(int argc, char const* argv[]) {
+     std::cout << "  --max-close-ratio <value>: set initial hand max close ratio (0.2-1.0; default: 1.0 = full closure)" << std::endl;
+     std::cout << "                             0.2 = limited (80% open), 1.0 = full closure allowed" << std::endl;
+     std::cout << "                             Keyboard controls: x/c = +/- 0.1 (always available)" << std::endl;
++    std::cout << "  --enable-policy-guard: stop (damping) if the policy's raw output is NaN/Inf or |a| > 20 on any joint" << std::endl;
++    std::cout << "  --policy-action-limit <value>: enable the policy guard with this bound instead of 20" << std::endl;
++    std::cout << "  --lowstate-timeout-ms <ms>: stop (damping) when the newest LowState is older than <ms> (default: 500)" << std::endl;
+     std::cout << "  --stop-damping-ms <ms>: on any stop (O key, SIGINT/SIGTERM/SIGHUP, safety check) keep publishing" << std::endl;
+     std::cout << "                          the damping command for <ms> before exiting (default: 1000)" << std::endl;
+     std::cout << "\nExamples:" << std::endl;
+@@ -4266,6 +4291,7 @@ int main(int argc, char const* argv[]) {
+   double initial_max_close_ratio = 1.0; // default allows full closure, use --max-close-ratio to limit
+   MotorGainScaleConfig motor_gain_scales;
+   int stop_damping_ms = 1000;
++  SafetyConfig safety_config;
+   for (int i = 4; i < argc; i++) {
+     if (std::string(argv[i]) == "--disable-crc-check") {
+       disableCrcCheck = true;
+@@ -4520,6 +4546,46 @@ int main(int argc, char const* argv[]) {
+         std::cerr << "Error: --stop-damping-ms requires a value argument" << std::endl;
+         exit(1);
+       }
++    } else if (std::string(argv[i]) == "--enable-policy-guard") {
++      if (!safety_config.policy_action_limit) {
++        safety_config.policy_action_limit = kDefaultPolicyActionLimit;
++      }
++    } else if (std::string(argv[i]) == "--policy-action-limit") {
++      if (i + 1 < argc) {
++        float limit = 0.0F;
++        try {
++          limit = std::stof(argv[i + 1]);
++        } catch (...) {
++          limit = 0.0F;
++        }
++        if (!is_finite_float(limit) || limit <= 0.0F) {
++          std::cerr << "Error: --policy-action-limit must be a positive number" << std::endl;
++          exit(1);
++        }
++        safety_config.policy_action_limit = limit;
++        i++; // Skip the next argument since it's the limit
++      } else {
++        std::cerr << "Error: --policy-action-limit requires a value argument" << std::endl;
++        exit(1);
++      }
++    } else if (std::string(argv[i]) == "--lowstate-timeout-ms") {
++      if (i + 1 < argc) {
++        int timeout_ms = 0;
++        try {
++          timeout_ms = std::stoi(argv[i + 1]);
++        } catch (...) {
++          timeout_ms = 0;
++        }
++        if (timeout_ms <= 0) {
++          std::cerr << "Error: --lowstate-timeout-ms must be a positive integer" << std::endl;
++          exit(1);
++        }
++        safety_config.lowstate_timeout = std::chrono::milliseconds(timeout_ms);
++        i++; // Skip the next argument since it's the timeout
++      } else {
++        std::cerr << "Error: --lowstate-timeout-ms requires a value argument" << std::endl;
++        exit(1);
++      }
+     }
+   }
+ 
+@@ -4553,7 +4619,8 @@ int main(int argc, char const* argv[]) {
+     enableMotionRecording,
+     initial_compliance,
+     initial_max_close_ratio,
+-    motor_gain_scales
++    motor_gain_scales,
++    safety_config
+   );
+   std::cout << "[DEBUG] G1Deploy object created successfully!" << std::endl;
+   // Installed after construction: until the control threads start, no command
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
+new file mode 100644
+index 0000000..e4cdd94
+--- /dev/null
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
+@@ -0,0 +1,20 @@
++#include "safety_checks.hpp"
++
++#include <bit>
++#include <cmath>
++#include <cstddef>
++#include <cstdint>
++
++bool is_finite_float(float value) {
++  constexpr std::uint32_t kExponentMask = 0x7F800000U;
++  return (std::bit_cast<std::uint32_t>(value) & kExponentMask) != kExponentMask;
++}
++
++int find_invalid_action(std::span<const float> action, float limit) {
++  for (std::size_t i = 0; i < action.size(); ++i) {
++    if (!is_finite_float(action[i]) || std::fabs(action[i]) > limit) {
++      return static_cast<int>(i);
++    }
++  }
++  return -1;
++}
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
+new file mode 100644
+index 0000000..e77c9f3
+--- /dev/null
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
+@@ -0,0 +1,41 @@
++#include <gtest/gtest.h>
++
++#include "../include/safety_checks.hpp"
++
++#include <array>
++#include <limits>
++
++// Built with the runtime's flags (-O3 -ffast-math): these also check that the
++// NaN/Inf detection survives fast-math.
++
++TEST(SafetyChecks, IsFiniteFloat) {
++    EXPECT_TRUE(is_finite_float(0.0F));
++    EXPECT_TRUE(is_finite_float(-1.5F));
++    EXPECT_TRUE(is_finite_float(std::numeric_limits<float>::max()));
++    EXPECT_TRUE(is_finite_float(std::numeric_limits<float>::denorm_min()));
++    EXPECT_FALSE(is_finite_float(std::numeric_limits<float>::quiet_NaN()));
++    EXPECT_FALSE(is_finite_float(-std::numeric_limits<float>::quiet_NaN()));
++    EXPECT_FALSE(is_finite_float(std::numeric_limits<float>::signaling_NaN()));
++    EXPECT_FALSE(is_finite_float(std::numeric_limits<float>::infinity()));
++    EXPECT_FALSE(is_finite_float(-std::numeric_limits<float>::infinity()));
++}
++
++TEST(SafetyChecks, FindInvalidAction) {
++    std::array<float, 29> action{};
++    action[3] = 19.9F;
++    action[4] = -20.0F;
++    EXPECT_EQ(find_invalid_action(action, 20.0F), -1);
++
++    action[7] = 20.5F;
++    EXPECT_EQ(find_invalid_action(action, 20.0F), 7);
++    action[7] = -100.0F;
++    EXPECT_EQ(find_invalid_action(action, 20.0F), 7);
++    action[2] = std::numeric_limits<float>::quiet_NaN();
++    EXPECT_EQ(find_invalid_action(action, 20.0F), 2);
++
++    action = {};
++    action[28] = std::numeric_limits<float>::infinity();
++    EXPECT_EQ(find_invalid_action(action, 20.0F), 28);
++    action[28] = std::numeric_limits<float>::quiet_NaN();
++    EXPECT_EQ(find_invalid_action(action, 1e30F), 28);
++}

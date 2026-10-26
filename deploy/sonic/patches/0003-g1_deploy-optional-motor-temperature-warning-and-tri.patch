@@ -1,0 +1,279 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Henry <kevinhenry2027@gmail.com>
+Date: Sat, 24 Oct 2026 17:47:53 +0400
+Subject: [PATCH 3/3] g1_deploy: optional motor temperature warning and trip
+ thresholds
+
+The runtime already reads both motor temperatures (two sensors per motor) but only
+warns, at a fixed 90 degC. Two optional thresholds act on each motor's
+hotter reading, checked in CheckSafety() every control tick in
+WAIT_FOR_CONTROL and CONTROL:
+
+  --motor-temp-warn <degC>  print once per motor when it is reached
+  --motor-temp-trip <degC>  stop control like the O key (damping, then exit)
+                            and print which motor tripped
+
+Both are off by default; SONIC's 90 degC audio/console warning is unchanged.
+There is no softer "hold idle" level: the planner's idle is commanded through
+the movement state the input thread owns, so overriding it from the control
+loop would race the operator's input.
+---
+ .../include/safety_checks.hpp                 | 33 ++++++++++
+ .../src/g1_deploy_onnx_ref.cpp                | 57 +++++++++++++++++
+ .../g1_deploy_onnx_ref/src/safety_checks.cpp  | 15 +++++
+ .../unit_tests/test_safety_checks.cpp         | 61 +++++++++++++++++++
+ 4 files changed, 166 insertions(+)
+
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
+index 464213f..0e0d7c0 100644
+--- a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/include/safety_checks.hpp
+@@ -9,9 +9,14 @@
+  */
+ #pragma once
+ 
++#include <array>
+ #include <chrono>
++#include <cstdint>
+ #include <optional>
+ #include <span>
++#include <string>
++
++#include "robot_parameters.hpp"
+ 
+ struct SafetyConfig {
+   /// --enable-policy-guard / --policy-action-limit: stop when the policy's raw
+@@ -21,6 +26,10 @@ struct SafetyConfig {
+   /// --lowstate-timeout-ms: stop when the newest LowState is older than this
+   /// (default: 500 ms, SONIC's threshold).
+   std::chrono::milliseconds lowstate_timeout{500};
++  /// --motor-temp-warn: print once per motor when it reaches this [degC].
++  std::optional<int> motor_temp_warn;
++  /// --motor-temp-trip: stop when any motor reaches this [degC].
++  std::optional<int> motor_temp_trip;
+ };
+ 
+ /// Default bound of --enable-policy-guard.
+@@ -33,3 +42,27 @@ bool is_finite_float(float value);
+ /// Index of the first element of `action` that is NaN, +-Inf or larger than
+ /// `limit` in magnitude; -1 if all are valid.
+ int find_invalid_action(std::span<const float> action, float limit);
++
++/// Decision logic of --motor-temp-warn / --motor-temp-trip. Takes each motor's
++/// hotter reading (either sensor), as SONIC's own 90 degC warning does.
++class MotorTemperatureGuard {
++ public:
++  struct Result {
++    /// Motors that reached the warning threshold for the first time.
++    std::array<bool, G1_NUM_MOTOR> new_warning{};
++    /// First motor at or above the trip threshold, -1 if none.
++    int trip_motor = -1;
++  };
++
++  explicit MotorTemperatureGuard(const SafetyConfig& config)
++      : warn_(config.motor_temp_warn), trip_(config.motor_temp_trip) {}
++
++  bool enabled() const { return warn_.has_value() || trip_.has_value(); }
++
++  Result Update(std::span<const int16_t, G1_NUM_MOTOR> temperatures);
++
++ private:
++  std::optional<int> warn_;
++  std::optional<int> trip_;
++  std::array<bool, G1_NUM_MOTOR> warned_{};
++};
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
+index 7148b07..7427328 100644
+--- a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/g1_deploy_onnx_ref.cpp
+@@ -302,6 +302,7 @@ class G1Deploy {
+     ProgramState program_state_;
+     MotorGainScaleConfig motor_gain_scales_;
+     SafetyConfig safety_;
++    MotorTemperatureGuard temperature_guard_;
+     std::array<double, G1_NUM_MOTOR> last_action;
+     std::array<double, 7> last_left_hand_action;
+     std::array<double, 7> last_right_hand_action;
+@@ -2198,6 +2199,7 @@ class G1Deploy {
+         program_state_(ProgramState::INIT),
+         motor_gain_scales_(motor_gain_scales),
+         safety_(safety_config),
++        temperature_guard_(safety_config),
+         last_action {0.0},
+         last_left_hand_action {0.0},
+         last_right_hand_action {0.0},
+@@ -2223,6 +2225,12 @@ class G1Deploy {
+                   << *safety_.policy_action_limit << std::endl;
+       }
+       std::cout << "[INFO] LowState timeout: " << safety_.lowstate_timeout.count() << " ms" << std::endl;
++      if (safety_.motor_temp_warn) {
++        std::cout << "[INFO] Motor temperature warning at " << *safety_.motor_temp_warn << " °C" << std::endl;
++      }
++      if (safety_.motor_temp_trip) {
++        std::cout << "[INFO] Motor temperature trip (damping) at " << *safety_.motor_temp_trip << " °C" << std::endl;
++      }
+       
+       // Initialize ChannelFactory
+       ChannelFactory::Instance()->Init(0, networkInterface);
+@@ -2833,6 +2841,33 @@ class G1Deploy {
+         return false;
+       }
+ 
++      return CheckMotorTemperatures(*ls);
++    }
++
++    /// Motor temperature guard (--motor-temp-warn / --motor-temp-trip): warns
++    /// once per motor; false once a motor reaches the trip threshold.
++    bool CheckMotorTemperatures(const LowState_& ls) {
++      if (!temperature_guard_.enabled()) { return true; }
++      std::array<int16_t, G1_NUM_MOTOR> temperatures;
++      for (int i = 0; i < G1_NUM_MOTOR; ++i) {
++        const auto& t = ls.motor_state()[i].temperature();
++        temperatures[i] = std::max(t[0], t[1]);
++      }
++      const auto result = temperature_guard_.Update(temperatures);
++      for (int i = 0; i < G1_NUM_MOTOR; ++i) {
++        if (result.new_warning[i]) {
++          const auto& t = ls.motor_state()[i].temperature();
++          std::cout << "[WARNING] Motor " << i << " (hardware index) at " << t[0] << " / " << t[1]
++                    << " °C (sensor 0 / sensor 1), warning threshold " << *safety_.motor_temp_warn << " °C" << std::endl;
++        }
++      }
++      if (result.trip_motor >= 0) {
++        const auto& t = ls.motor_state()[result.trip_motor].temperature();
++        std::cout << "[SAFETY] Thermal guard tripped: motor " << result.trip_motor << " (hardware index) at "
++                  << t[0] << " / " << t[1] << " °C (sensor 0 / sensor 1), trip threshold "
++                  << *safety_.motor_temp_trip << " °C, switching to damping" << std::endl;
++        return false;
++      }
+       return true;
+     }
+ 
+@@ -4244,6 +4279,8 @@ int main(int argc, char const* argv[]) {
+     std::cout << "  --enable-policy-guard: stop (damping) if the policy's raw output is NaN/Inf or |a| > 20 on any joint" << std::endl;
+     std::cout << "  --policy-action-limit <value>: enable the policy guard with this bound instead of 20" << std::endl;
+     std::cout << "  --lowstate-timeout-ms <ms>: stop (damping) when the newest LowState is older than <ms> (default: 500)" << std::endl;
++    std::cout << "  --motor-temp-warn <degC>: print once per motor when its hotter temperature reading reaches <degC>" << std::endl;
++    std::cout << "  --motor-temp-trip <degC>: stop (damping) when any motor's hotter temperature reading reaches <degC>" << std::endl;
+     std::cout << "  --stop-damping-ms <ms>: on any stop (O key, SIGINT/SIGTERM/SIGHUP, safety check) keep publishing" << std::endl;
+     std::cout << "                          the damping command for <ms> before exiting (default: 1000)" << std::endl;
+     std::cout << "\nExamples:" << std::endl;
+@@ -4586,6 +4623,26 @@ int main(int argc, char const* argv[]) {
+         std::cerr << "Error: --lowstate-timeout-ms requires a value argument" << std::endl;
+         exit(1);
+       }
++    } else if (std::string(argv[i]) == "--motor-temp-warn" || std::string(argv[i]) == "--motor-temp-trip") {
++      const std::string flag = argv[i];
++      if (i + 1 < argc) {
++        int threshold = -1;
++        try {
++          threshold = std::stoi(argv[i + 1]);
++        } catch (...) {
++          threshold = -1;
++        }
++        if (threshold < 0) {
++          std::cerr << "Error: " << flag << " must be a non-negative integer (degC)" << std::endl;
++          exit(1);
++        }
++        auto& setting = (flag == "--motor-temp-warn") ? safety_config.motor_temp_warn : safety_config.motor_temp_trip;
++        setting = threshold;
++        i++; // Skip the next argument since it's the threshold
++      } else {
++        std::cerr << "Error: " << flag << " requires a value argument" << std::endl;
++        exit(1);
++      }
+     }
+   }
+ 
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
+index e4cdd94..418abe7 100644
+--- a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/src/safety_checks.cpp
+@@ -18,3 +18,18 @@ int find_invalid_action(std::span<const float> action, float limit) {
+   }
+   return -1;
+ }
++
++MotorTemperatureGuard::Result MotorTemperatureGuard::Update(
++    std::span<const int16_t, G1_NUM_MOTOR> temperatures) {
++  Result result;
++  for (int i = 0; i < G1_NUM_MOTOR; ++i) {
++    if (warn_ && temperatures[i] >= *warn_ && !warned_[i]) {
++      warned_[i] = true;
++      result.new_warning[i] = true;
++    }
++    if (trip_ && temperatures[i] >= *trip_ && result.trip_motor < 0) {
++      result.trip_motor = i;
++    }
++  }
++  return result;
++}
+diff --git a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
+index e77c9f3..7defca3 100644
+--- a/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
++++ b/gear_sonic_deploy/src/g1/g1_deploy_onnx_ref/unit_tests/test_safety_checks.cpp
+@@ -39,3 +39,64 @@ TEST(SafetyChecks, FindInvalidAction) {
+     action[28] = std::numeric_limits<float>::quiet_NaN();
+     EXPECT_EQ(find_invalid_action(action, 1e30F), 28);
+ }
++
++TEST(SafetyChecks, MotorTemperatureGuardDisabledByDefault) {
++    MotorTemperatureGuard guard(SafetyConfig{});
++    EXPECT_FALSE(guard.enabled());
++    std::array<int16_t, G1_NUM_MOTOR> temperatures;
++    temperatures.fill(200);
++    const auto result = guard.Update(temperatures);
++    EXPECT_EQ(result.trip_motor, -1);
++    for (bool warned : result.new_warning) { EXPECT_FALSE(warned); }
++}
++
++TEST(SafetyChecks, MotorTemperatureGuardWarnsOncePerMotor) {
++    SafetyConfig config;
++    config.motor_temp_warn = 70;
++    MotorTemperatureGuard guard(config);
++    EXPECT_TRUE(guard.enabled());
++    std::array<int16_t, G1_NUM_MOTOR> temperatures;
++    temperatures.fill(40);
++    temperatures[3] = 70;
++
++    auto result = guard.Update(temperatures);
++    EXPECT_TRUE(result.new_warning[3]);
++    EXPECT_FALSE(result.new_warning[2]);
++    EXPECT_EQ(result.trip_motor, -1);
++
++    // Still hot, then cooled and hot again: reported only the first time.
++    result = guard.Update(temperatures);
++    EXPECT_FALSE(result.new_warning[3]);
++    temperatures[3] = 40;
++    guard.Update(temperatures);
++    temperatures[3] = 75;
++    temperatures[9] = 71;
++    result = guard.Update(temperatures);
++    EXPECT_FALSE(result.new_warning[3]);
++    EXPECT_TRUE(result.new_warning[9]);
++}
++
++TEST(SafetyChecks, MotorTemperatureGuardTrips) {
++    SafetyConfig config;
++    config.motor_temp_warn = 70;
++    config.motor_temp_trip = 90;
++    MotorTemperatureGuard guard(config);
++    std::array<int16_t, G1_NUM_MOTOR> temperatures;
++    temperatures.fill(40);
++    temperatures[5] = 89;
++    EXPECT_EQ(guard.Update(temperatures).trip_motor, -1);
++
++    temperatures[12] = 90;
++    temperatures[20] = 95;
++    const auto result = guard.Update(temperatures);
++    EXPECT_EQ(result.trip_motor, 12);  // first motor at or above the threshold
++    EXPECT_TRUE(result.new_warning[12]);
++    EXPECT_TRUE(result.new_warning[20]);
++
++    // Trip only (no warning level), and a zero threshold trips on the sim's 0 degC readings.
++    SafetyConfig trip_only;
++    trip_only.motor_temp_trip = 0;
++    MotorTemperatureGuard zero_guard(trip_only);
++    temperatures.fill(0);
++    EXPECT_EQ(zero_guard.Update(temperatures).trip_motor, 0);
++}

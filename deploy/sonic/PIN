@@ -1,0 +1,6 @@
+# SONIC (NVlabs/GR00T-WholeBodyControl) commit realmimic builds against.
+# Must match the commit of the runtime installed on the robot.
+SONIC_REPO=https://github.com/NVlabs/GR00T-WholeBodyControl.git
+SONIC_COMMIT=7f151314d4d1606544bf249d2a7a1cb754c64582
+CPPZMQ_REPO=https://github.com/zeromq/cppzmq.git
+CPPZMQ_TAG=v4.10.0
