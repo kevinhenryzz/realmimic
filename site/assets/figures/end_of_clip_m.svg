@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 330" role="img" font-family="JetBrains Mono, ui-monospace, monospace" font-size="11">
+<title>End-of-clip failures on the full set against training iterations</title>
+<line x1="50" x2="326" y1="290.0" y2="290.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="42" y="294.0" text-anchor="end" fill="#85888f">0</text>
+<line x1="50" x2="326" y1="236.0" y2="236.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="42" y="240.0" text-anchor="end" fill="#85888f">10</text>
+<line x1="50" x2="326" y1="182.0" y2="182.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="42" y="186.0" text-anchor="end" fill="#85888f">100</text>
+<line x1="50" x2="326" y1="128.0" y2="128.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="42" y="132.0" text-anchor="end" fill="#85888f">1,000</text>
+<line x1="50" x2="326" y1="74.0" y2="74.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="42" y="78.0" text-anchor="end" fill="#85888f">10,000</text>
+<text x="50.0" y="308" text-anchor="middle" fill="#85888f">0k</text>
+<text x="100.2" y="308" text-anchor="middle" fill="#85888f">16k</text>
+<text x="150.4" y="308" text-anchor="middle" fill="#85888f">32k</text>
+<text x="200.5" y="308" text-anchor="middle" fill="#85888f">48k</text>
+<text x="250.7" y="308" text-anchor="middle" fill="#85888f">64k</text>
+<text x="300.9" y="308" text-anchor="middle" fill="#85888f">80k</text>
+<text x="188.0" y="326" text-anchor="middle" fill="#85888f">training iterations</text>
+<path class="series" style="--k:0" pathLength="1" d="M75.1,273.7 L100.2,273.7 L125.3,273.7 L150.4,219.7 L175.5,103.8 L200.5,93.2" fill="none" stroke="#ff3b30" stroke-width="2.2"/>
+<circle class="pt" style="--k:0;--d:0.000" cx="75.1" cy="273.7" r="3.2" fill="#ff3b30"/>
+<circle class="pt" style="--k:0;--d:0.098" cx="100.2" cy="273.7" r="3.2" fill="#ff3b30"/>
+<circle class="pt" style="--k:0;--d:0.196" cx="125.3" cy="273.7" r="3.2" fill="#ff3b30"/>
+<circle class="pt" style="--k:0;--d:0.429" cx="150.4" cy="219.7" r="3.2" fill="#ff3b30"/>
+<circle class="pt" style="--k:0;--d:0.893" cx="175.5" cy="103.8" r="3.2" fill="#ff3b30"/>
+<circle class="pt" style="--k:0;--d:1.000" cx="200.5" cy="93.2" r="3.2" fill="#ff3b30"/>
+<text class="end" style="--k:0" x="208.5" y="97.2" fill="#ff3b30">4,417</text>
+<rect x="10" y="8" width="10" height="10" rx="2" fill="#ff3b30"/>
+<text x="26" y="17" fill="#b8b9bd">no fix, run A</text>
+<path class="series" style="--k:1" pathLength="1" d="M75.1,273.7 L100.2,290.0 L125.3,273.7 L150.4,112.8 L175.5,128.1 L200.5,171.7" fill="none" stroke="#ff8a3d" stroke-width="2.2"/>
+<circle class="pt" style="--k:1;--d:0.000" cx="75.1" cy="273.7" r="3.2" fill="#ff8a3d"/>
+<circle class="pt" style="--k:1;--d:0.099" cx="100.2" cy="290.0" r="3.2" fill="#ff8a3d"/>
+<circle class="pt" style="--k:1;--d:0.198" cx="125.3" cy="273.7" r="3.2" fill="#ff8a3d"/>
+<circle class="pt" style="--k:1;--d:0.736" cx="150.4" cy="112.8" r="3.2" fill="#ff8a3d"/>
+<circle class="pt" style="--k:1;--d:0.834" cx="175.5" cy="128.1" r="3.2" fill="#ff8a3d"/>
+<circle class="pt" style="--k:1;--d:1.000" cx="200.5" cy="171.7" r="3.2" fill="#ff8a3d"/>
+<text class="end" style="--k:1" x="208.5" y="175.7" fill="#ff8a3d">154</text>
+<rect x="10" y="28" width="10" height="10" rx="2" fill="#ff8a3d"/>
+<text x="26" y="37" fill="#b8b9bd">no fix, run B</text>
+<path class="series" style="--k:2" pathLength="1" d="M75.1,273.7 L100.2,273.7 L125.3,273.7 L150.4,290.0 L175.5,290.0 L200.5,290.0 L225.6,290.0 L250.7,290.0 L275.8,290.0 L288.4,290.0 L300.9,290.0 L307.5,290.0" fill="none" stroke="#3d8bff" stroke-width="2.2"/>
+<circle class="pt" style="--k:2;--d:0.000" cx="75.1" cy="273.7" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.106" cx="100.2" cy="273.7" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.212" cx="125.3" cy="273.7" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.338" cx="150.4" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.443" cx="175.5" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.549" cx="200.5" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.655" cx="225.6" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.761" cx="250.7" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.866" cx="275.8" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.919" cx="288.4" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:0.972" cx="300.9" cy="290.0" r="3.2" fill="#3d8bff"/>
+<circle class="pt" style="--k:2;--d:1.000" cx="307.5" cy="290.0" r="3.2" fill="#3d8bff"/>
+<text class="end" style="--k:2" x="315.5" y="294.0" fill="#3d8bff">0</text>
+<rect x="10" y="48" width="10" height="10" rx="2" fill="#3d8bff"/>
+<text x="26" y="57" fill="#b8b9bd">with the fix</text>
+</svg>

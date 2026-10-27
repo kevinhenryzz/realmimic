@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>realmimic: SuperMimic on one RTX 4090</title>
+  <meta name="description" content="A whole-body motion tracker for the Unitree G1, trained on one RTX 4090 (24 GB) in 10.5 hours, and run through NVIDIA's SONIC deploy runtime.">
+  <meta name="theme-color" content="#0b0c0e">
+  <!-- Link previews (LinkedIn, X, Slack...): absolute URLs of the published site. -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="realmimic: SuperMimic on one RTX 4090">
+  <meta property="og:description" content="A whole-body motion tracker for the Unitree G1, trained on one RTX 4090 (24 GB) in 10.5 hours, and run through NVIDIA's SONIC deploy runtime.">
+  <meta property="og:url" content="https://kevinhenryzz.github.io/realmimic/">
+  <meta property="og:image" content="https://kevinhenryzz.github.io/realmimic/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="SuperMimic on one RTX 4090: the simulated Unitree G1 mid-backflip beside an RTX 4090; 10 of 129,491 motions failed, 10.5 h on one GPU">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="vendor/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <!-- Start the large downloads with the HTML, not after the module graph (main.js reuses them). Phones
+       wait for a tap (see the phone check in main.js), so the hints skip them. -->
+  <link rel="preload" href="assets/hero/poster.jpg" as="image" fetchpriority="high">
+  <script>
+    // The demo's big downloads start with the page on desktops, and only where the 3D view can run (WebGL 2).
+    if (matchMedia('(pointer: fine), (min-width: 721px) and (min-height: 521px)').matches && document.createElement('canvas').getContext('webgl2')) {
+      for (const href of ['vendor/mujoco/mujoco.wasm.gz', 'vendor/onnxruntime-web/ort-wasm-simd-threaded.wasm.gz', 'assets/policy/policy.onnx', 'assets/robot/meshes.bin']) {
+        document.head.append(Object.assign(document.createElement('link'), { rel: 'preload', href, as: 'fetch', crossOrigin: 'anonymous' }));
+      }
+    }
+  </script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/",
+        "mujoco": "./vendor/mujoco/mujoco.js",
+        "meshopt": "./vendor/meshopt/meshopt_decoder.mjs",
+        "onnxruntime-web": "./vendor/onnxruntime-web/ort.wasm.min.mjs"
+      }
+    }
+  </script>
+  <script type="module" src="demo/main.js"></script>
+  <script type="module" src="demo/results.js"></script>
+  <script type="module" src="demo/gpu.js"></script>
+  <script type="module" src="demo/reveal.js"></script>
+  <script type="module" src="demo/nav.js"></script>
+  <script type="module" src="demo/copy.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top">REAL<span>MIMIC</span></a>
+    <nav>
+      <a href="#demo">Demo</a>
+      <a href="#results">Results</a>
+      <a href="#deploy">Deploy</a>
+      <a href="#start">Get started</a>
+      <a href="https://github.com/kevinhenryzz/realmimic" target="_blank" rel="noopener">Code</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-text">
+      <p class="eyebrow">// open-source reproduction of SuperMimic</p>
+      <h1>realmimic</h1>
+      <p class="lede">A whole-body motion tracker for the Unitree G1, trained on one RTX&nbsp;4090 (24&nbsp;GB) in 10.5&nbsp;hours, and run through NVIDIA's SONIC deploy runtime.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/kevinhenryzz/realmimic" target="_blank" rel="noopener">Code</a>
+        <a class="btn" href="https://huggingface.co/kevinhenryz/realmimic" target="_blank" rel="noopener">Weights</a>
+        <a class="btn" href="https://arxiv.org/abs/2610.28480" target="_blank" rel="noopener">SuperMimic paper</a>
+      </div>
+      <p class="byline">Kevin Henry · independent and unofficial.<br>Not affiliated with the SuperMimic authors, UC Berkeley, NVIDIA, Bones Studio or Unitree.<br>Built on <a href="https://github.com/YanYuan98/Supermimic_mod" target="_blank" rel="noopener">YanYuan98/Supermimic_mod</a> and <a href="https://github.com/CuboiLeo/SuperMimic-Reproduced" target="_blank" rel="noopener">CuboiLeo/SuperMimic-Reproduced</a>.</p>
+      </div>
+      <div class="hero-gpu" id="gpu-card">
+        <canvas id="gpu-canvas" role="img" aria-label="A 3D model of an RTX 4090 graphics card; drag to tilt it"></canvas>
+      </div>
+    </section>
+
+    <section id="demo">
+      <div class="stage hero-on" id="stage">
+        <div class="viewport">
+          <canvas id="demo-canvas" aria-label="Simulated Unitree G1 robot. Drag the robot to push it."></canvas>
+          <div class="hud hud-br hint" id="demo-hint" aria-hidden="true"><span class="hint-mouse">Drag the robot to push it · drag anywhere else to turn the view · scroll to zoom</span><span class="hint-touch">Drag the robot to push it · drag elsewhere to turn the view · pinch to zoom</span></div>
+          <div class="hud hud-c banner" id="demo-banner" role="status" aria-live="polite" hidden></div>
+
+          <div class="hero-video" id="hero">
+            <video autoplay muted loop playsinline preload="auto" poster="assets/hero/poster.jpg" aria-label="Recorded: the released policy performing flips, rolls, jumps and dance moves in this simulator">
+              <source src="assets/hero/hero.mp4" type="video/mp4">
+            </video>
+            <div class="hero-tag"><span class="rec"></span>Recorded · released policy</div>
+            <div class="hero-cap"><span class="hero-move" aria-live="off"></span></div>
+            <p class="hero-credit">Motion Data by <a href="https://bones.studio/" target="_blank" rel="noopener">Bones Studio</a> · rendered in this scene</p>
+            <button class="btn primary try-live" type="button"><span class="try-fill"></span><span class="try-label">Try it live</span></button>
+          </div>
+
+          <div class="loader" id="loader" role="status" aria-live="polite">
+            <div class="panel loader-panel">
+              <div class="loader-head"><span class="label">Booting simulation</span><span id="load-total">0 %</span></div>
+              <div class="bar"><div class="bar-fill" id="load-total-bar"></div></div>
+              <ul class="assets" id="load-list"></ul>
+              <p class="loader-note" id="load-note">Everything runs in your browser: no server; the physics and the policy run on your CPU.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-tl hud-col left">
+          <div class="panel" id="live-hud" aria-hidden="true">
+            <div class="hud-title"><span class="live"></span>Live sim</div>
+            <dl class="readouts">
+              <dt>Sim time</dt><dd id="ro-time">--</dd>
+              <dt title="Wall-clock time of one 20 ms control step: policy, physics and world model">Step time</dt><dd id="ro-infer">--</dd>
+              <dt>FPS</dt><dd id="ro-fps">--<span class="caret">▮</span></dd>
+            </dl>
+          </div>
+          <div class="panel setup" id="setup-hud">
+            <label><span class="label">Robot</span>
+              <select id="demo-robot" disabled>
+                <option value="g1">Stock G1</option>
+                <option value="g1_brainco">BrainCo hands</option>
+              </select>
+            </label>
+            <label class="friction"><span class="label">Foot friction <output id="friction-val">1.00</output></span>
+              <input type="range" id="demo-friction" min="0.1" max="1.5" step="0.05" value="1" disabled>
+              <span class="friction-note" id="friction-note">training range 0.3–1.2
+benchmark 1.0</span>
+            </label>
+            <p class="setup-note" id="setup-note">Same policy on every robot.</p>
+          </div>
+        </div>
+
+        <div class="hud hud-tr hud-col">
+          <div class="panel" id="force-hud">
+            <div class="label">Push force</div>
+            <div class="force-value"><span id="ro-force">0</span><small> N</small></div>
+            <div class="gauge"><div class="gauge-fill" id="force-fill"></div></div>
+            <div class="force-sub" id="ro-force-sub"></div>
+            <div class="push-test">
+              <span class="label">Push test</span>
+              <div class="push-buttons" role="group" aria-label="Push the robot at a fixed speed">
+                <button type="button" data-v="0.5" disabled>0.5</button><button type="button" data-v="1" disabled>1</button><button type="button" data-v="2" disabled>2</button><button type="button" data-v="4" disabled>4</button><span class="unit">m/s</span>
+              </div>
+              <div class="force-sub" id="ro-push-result" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="panel" id="wm-hud">
+            <div class="wm-head">
+              <span class="label">World model</span>
+              <button class="switch wm" id="demo-wm" type="button" role="switch" aria-checked="true" aria-label="Show the world model" disabled><span class="track"><span class="thumb"></span></span><span class="state">on</span></button>
+            </div>
+            <div id="wm-body">
+              <div class="wm-readout">
+                <div class="wm-value"><span id="ro-div">--</span><small> cm apart now</small></div>
+                <div class="wm-end"><span id="ro-div-end">--</span><small> cm apart after 0.64&nbsp;s</small></div>
+              </div>
+              <canvas id="div-graph" aria-hidden="true"></canvas>
+              <div class="wm-legend"><span class="dim">Average distance between the blue robot's body parts and the solid robot's. Every 0.64&nbsp;s (the length of the training rollouts, vertical lines) the blue robot is reset to the solid one.</span></div>
+              <div class="wm-head wm-row">
+                <span class="label">Physics simulator (MuJoCo)</span>
+                <button class="switch" id="demo-mujoco" type="button" role="switch" aria-checked="true" aria-label="Run the physics simulator (MuJoCo)" disabled><span class="track"><span class="thumb"></span></span><span class="state">on</span></button>
+              </div>
+              <p class="wm-note" id="wm-note">Loading the world model…</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud hud-bl panel controls">
+          <label><span class="label">Motion</span> <select id="demo-motion"></select></label>
+          <label class="btn file-btn" title="A BONES-SEED G1 CSV, a header-less G1 CSV (position m, quaternion xyzw, 29 joints rad, 30 fps) or a realmimic .npz; converted in your browser">Load your own<input id="demo-file" class="visually-hidden" type="file" accept=".csv,.npz" disabled></label>
+          <span class="target-toggle"><span class="label">Target<span class="wide-only"> pose</span></span><button class="switch target" id="demo-target" type="button" role="switch" aria-checked="true" aria-label="Show the target pose" disabled><span class="track"><span class="thumb"></span></span><span class="state">on</span></button></span>
+          <span class="target-toggle policy-toggle" title="Off: the motors go limp and the robot falls; on: the policy takes over again"><span class="label">Policy</span><button class="switch" id="demo-policy" type="button" role="switch" aria-checked="true" aria-label="Run the policy" disabled><span class="track"><span class="thumb"></span></span><span class="state">on</span></button></span>
+          <button id="demo-pause" type="button">Pause</button>
+          <button id="demo-reset" type="button">Reset</button>
+        </div>
+
+      </div>
+      <div class="caption">
+        <p><strong>In your browser</strong><span id="cap-ckpt">The released policy (16-bit weights)</span> running in MuJoCo 3.16, compiled to WebAssembly, with the training physics settings. Nothing runs on a server.</p>
+        <p><strong>Try it</strong>Drag the robot or use the push test; the white outline is the target pose. It tracks body pose, not position, so it drifts slowly.</p>
+        <p><strong>World model</strong>The translucent blue robot is the learned model the policy was trained in, predicting the motion by itself; every 0.64&nbsp;s it is reset to the simulated robot. Pushes and drags are outside its training data.</p>
+        <p><strong>Load your own</strong>A BONES-SEED G1 CSV, a header-less G1 CSV at 30&nbsp;fps or a realmimic .npz, with the rights to use it. It never leaves your browser. <span id="upload-note"></span></p>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2><span class="idx">01</span>What this is</h2>
+      <ul class="facts">
+        <li><strong>Training on one RTX 4090.</strong> <code>uv run sm-train release</code> reproduces the released model. The paper trained on one H100 80&nbsp;GB; fitting 24&nbsp;GB next to the motion library meant halving the policy batch to 2048.</li>
+        <li><strong>The paper's benchmark</strong> on all 129,491 motion clips, with NVIDIA SONIC's released policy scored the same way.</li>
+        <li><strong>A path to the robot.</strong> Your G1 as a config file (hands, payloads), deployed inside NVIDIA's SONIC runtime and planner, unforked, with safety patches, and tested in simulation against the real deploy program.</li>
+      </ul>
+      <div class="panel not-box">
+        <div class="label">What this is not</div>
+        <ul class="plain">
+          <li>Not the paper's numbers: everything here is our own evaluation unless it says otherwise.</li>
+          <li>Hardware: early supervised tests on a real G1 are under way. Deploy weights and hardware results will follow in v1.1.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="results">
+      <h2><span class="idx">02</span>Results</h2>
+      <p>We use the paper's benchmark (its Appendix F): every clip of the BONES-SEED dataset that passes the paper's filter, 129,491 clips, each played once from its first frame. A clip fails if the robot falls: pelvis height off by more than 0.25&nbsp;m or its tilt by more than 0.8 (difference in the upward component of gravity in the pelvis frame) from the reference. Our policy and SONIC's released policy run in the same evaluator (MuJoCo Warp, mjlab), each with its own motor gains. The paper's figures come from its own evaluation and are quoted as reported.</p>
+      <div class="stats completion">
+        <div class="stat panel lead-stat">
+          <span class="stat-num" id="res-pct">–</span>
+          <span class="stat-line"><span id="res-done">–</span> of <span id="res-clips">–</span> motions completed</span>
+          <span class="stat-sub"><span id="res-failed">–</span> failed · tracking score <span id="res-return">–</span> (average normalised tracking reward; 1&nbsp;=&nbsp;perfect)</span>
+          <span class="stat-hw">released model · one RTX&nbsp;4090, 10.5&nbsp;h</span>
+          <span class="stat-sub" id="res-seed-pct"></span>
+        </div>
+        <div class="stat panel">
+          <span class="stat-num" id="res-sonic-pct">–</span>
+          <span class="stat-line"><span id="res-sonic-done">–</span> of <span id="res-sonic-clips">–</span> completed</span>
+          <span class="stat-sub"><span id="res-sonic">–</span> failed · SONIC release, the same evaluation for both</span>
+        </div>
+        <div class="stat panel">
+          <span class="stat-num" id="res-paper-pct">–</span>
+          <span class="stat-line"><span id="res-paper-done">–</span> of <span id="res-paper-clips">–</span> completed</span>
+          <span class="stat-sub"><span id="res-paper">–</span> failed · SuperMimic paper, one H100 80&nbsp;GB, 3&nbsp;h, as reported (its own evaluation)</span>
+        </div>
+      </div>
+
+      <h3 class="part" id="videos">Side by side with SONIC's released policy</h3>
+      <p class="note">Same clip, same reference: ours on the left, SONIC's release on the right.</p>
+      <div class="video-grid">
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/00.mp4" poster="assets/videos/00.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A flip with a hero landing</strong> Ours completes it; SONIC's release falls at 1.4 s.</figcaption></figure>
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/01.mp4" poster="assets/videos/01.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A 360 flip</strong> Ours completes it; SONIC's release falls at 2.4 s.</figcaption></figure>
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/02.mp4" poster="assets/videos/02.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A vogue dance drop</strong> Ours completes it; SONIC's release falls at 4.7 s.</figcaption></figure>
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/03.mp4" poster="assets/videos/03.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A back-kick dance move</strong> Ours completes it; SONIC's release falls at 2.7 s.</figcaption></figure>
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/04.mp4" poster="assets/videos/04.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A high jump</strong> Ours completes it; SONIC's release falls at 2.2 s.</figcaption></figure>
+        <figure class="video-card panel"><div class="vframe"><video src="assets/videos/05.mp4" poster="assets/videos/05.jpg" muted loop playsinline preload="none" width="1280" height="720"></video></div><div class="vstatus"><span class="vs"><b>realmimic</b><em data-state="ok">on track</em></span><span class="vs"><b>SONIC release</b><em data-state="ok">on track</em></span></div><figcaption><strong>A broad jump</strong> Ours completes it; SONIC's release falls at 4.4 s.</figcaption></figure>
+      </div>
+      <p class="note hw-line">Hardware: early supervised tests on a real G1 are under way. Deploy weights and hardware results will follow in v1.1.</p>
+      <p class="note credit">Training data includes Motion Data by Bones Studio (<a href="https://bones.studio/" target="_blank" rel="noopener">https://bones.studio/</a>). Use of the underlying dataset is subject to the BONES Motion Capture Dataset License Agreement.</p>
+      <p class="note">All six clips are from BONES-SEED. The faint outline is the reference; the translucent blue robot on our side is the world model the policy was trained in, predicting the motion and reset to the simulated robot every 0.64&nbsp;s, as in the live demo. The labels mark when a robot goes off track (the benchmark's failure) or falls.</p>
+
+      <h3 class="part">Full-benchmark results for every run</h3>
+      <div class="panel table-panel" id="res-table"></div>
+      <p class="note">None of these failures happens on a clip's last frame. Across the two seeds the final checkpoint fails 4 to 10 clips. Re-running one checkpoint with a different number of parallel simulations moves the failure count by about ±10 (at ~200 failures), so differences under 20 are within measurement noise. <span id="res-paper-note"></span> <span id="res-hw-note"></span></p>
+
+      <h4>Training curve</h4>
+      <div class="figs">
+        <figure class="fig panel"><picture><source media="(max-width: 600px)" srcset="assets/figures/failures_by_iteration_m.svg" width="360" height="336"><img class="chart" src="assets/figures/failures_by_iteration.svg" width="1100" height="340" alt="Full-set failures against training iterations, log scale, for the released model and a run with an alternative reward shape, with SONIC's release at 218 as a dashed line."></picture></figure>
+        <figure class="fig panel"><picture><source media="(max-width: 600px)" srcset="assets/figures/failures_by_hours_m.svg" width="360" height="354"><img class="chart" src="assets/figures/failures_by_hours.svg" width="1100" height="340" alt="Full-set failures against training hours on one RTX 4090, log scale, with SONIC's release at 218 and the paper's 25 at 3 hours on one H100 as reported."></picture></figure>
+      </div>
+      <p class="note">All 129,491 clips scored every 8,000 training iterations (on RTX 6000 Ada and RTX 5000 Ada GPUs). The paper's point is as reported, from its own evaluation.</p>
+
+      <h4>Failures by motion type</h4>
+      <details class="fold" open><summary>Show the table</summary>
+<p class="note">The paper's Table A.8 groups, recovered from motion-category names; group sizes are ours.</p>
+      <div class="panel table-panel" id="res-groups"></div>
+      </details>
+
+      <h4>Motion it never saw (LAFAN1)</h4>
+      <div class="panel table-panel" id="res-lafan"></div>
+      <p class="note" id="res-lafan-note"></p>
+      <p class="sources">Produced by <a href="https://github.com/kevinhenryzz/realmimic/blob/main/scripts/eval_benchmark.py" target="_blank" rel="noopener">scripts/eval_benchmark.py</a>; figures by <a href="https://github.com/kevinhenryzz/realmimic/blob/main/tools/web_figures.py" target="_blank" rel="noopener">tools/web_figures.py</a>.</p>
+
+      <h3 class="part" id="findings">What we found</h3>
+      <p>Two problems in the open reimplementation we started from decide the result at full data scale; the paper specifies neither.</p>
+
+      <article class="finding">
+        <h4>1. Training rarely practised the hardest motions</h4>
+        <figure class="fig panel">
+          <div class="bars" role="img" id="res-sampler-bars"></div>
+          <figcaption>Flips still failing on the 130 hardest clips at 12k iterations; the two runs in each pair differ in the estimate alone.</figcaption>
+        </figure>
+        <p>Training starts episodes in 1-second pieces of clips, preferring pieces it tracks badly. The inherited estimate of "badly" started every piece at the best possible score and moved 5&nbsp;% per visit, so with ~1 million pieces the rare acrobatic ones kept looking easy, while every clip's last second looked hard. Flips and side rolls got <em>half</em> of a fair share of practice.</p>
+        <p><strong>Fix:</strong> a running mean that counts visits and assumes the worst for unvisited pieces, with a continuation value at clip ends. <strong>Effect:</strong> on the 130 hardest clips, all 54 flips and 22 side rolls are learned by 6k iterations; with the old estimate, 5 to 12 flips still failed at 12k.</p>
+      </article>
+
+      <article class="finding">
+        <h4>2. Nothing in the training objective covered the end of a clip</h4>
+        <figure class="fig panel">
+          <picture><source media="(max-width: 600px)" srcset="assets/figures/end_of_clip_m.svg" width="360" height="330"><img class="chart" src="assets/figures/end_of_clip.svg" width="1100" height="340" alt="End-of-clip failures on the full set against training iterations, log scale. Without the fix, one run goes from 1 at 24k to 2,802 at 40k and 4,417 at 48k, another reaches 1,907 at 32k. With the fix, 0 or 1 at every checkpoint."></picture>
+          <figcaption>Failures on a clip's last frames, full set, against training iterations: two runs without the fix (A, B), one with it.</figcaption>
+        </figure>
+        <p>The learned-model rollouts stopped 32 frames before the end, so long runs learned to fall on the final frame. That costs almost nothing in the score but counts as a failure: at 40k iterations one such run had 2,882 failures, 2,802 on the last frame, still rising (4,417 at 48k).</p>
+        <p><strong>Fix:</strong> past the end, the reference holds the last frame still and the rollouts run into it. The released model has no last-frame failures.</p>
+      </article>
+
+      <h4>What did not matter measurably</h4>
+      <ul class="plain" id="res-notmeasurable"></ul>
+    </section>
+
+
+
+    <section id="deploy">
+      <h2><span class="idx">03</span>Deployment, in simulation</h2>
+      <p>Before a policy touches a robot, we run it inside NVIDIA SONIC's actual deploy program, the binary that runs on the G1, connected to a MuJoCo simulation of a G1 with BrainCo hands. Each session walks, turns, squats, kneels and stands up through SONIC's planner, with pushes, sensor errors and 10 to 20&nbsp;ms command delays. Our released tracker is first fine-tuned for this robot. Means over five sessions:</p>
+      <div class="panel table-panel">
+        <table class="results deploy">
+          <thead><tr><th>Policy</th><th>Falls</th><th>Joint tracking error (rad)</th><th>Body tilt error (rad)</th><th>Ankle motor load (Nm)</th><th>Waist motor load (Nm)</th></tr></thead>
+          <tbody>
+            <tr><td>SONIC's released policy</td><td>0</td><td>0.083</td><td>0.052</td><td>4.48</td><td>3.31</td></tr>
+            <tr><td>realmimic, fine-tuned for the robot</td><td>0</td><td>0.075</td><td>0.008</td><td>3.32</td><td>2.86</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">A second training seed gives no falls, 0.069 rad, 0.008 rad, 4.23 Nm and 3.34 Nm. Without the fine-tune, the released tracker falls once under command delay on this robot model. The fine-tune recipe comes with v1.1.</p>
+      <p class="sources">Building the runtime and running these sessions: <a href="https://github.com/kevinhenryzz/realmimic/blob/main/deploy/sonic/README.md" target="_blank" rel="noopener">deploy/sonic/README.md</a>.</p>
+    </section>
+
+    <section id="start">
+      <h2><span class="idx">04</span>Get started</h2>
+      <p class="note"><strong>You need:</strong> Linux, an NVIDIA GPU with 24&nbsp;GB (training; evaluation works on smaller GPUs), NVIDIA driver 580 or newer, about 170&nbsp;GB of free disk for the data, <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener">uv</a>, and a Hugging Face account.</p>
+      <pre><code>git clone https://github.com/kevinhenryzz/realmimic && cd realmimic
+uv sync --group dev                 # Python 3.12 and every dependency, pinned by uv.lock
+uv run hf auth login                # once; a read token from https://huggingface.co/settings/tokens
+tools/download_data.sh              # BONES-SEED (accept its licence on Hugging Face first) and LAFAN1
+tools/prepare_data.sh               # convert, filter, build the training library and the benchmark lists
+uv run sm-train release             # train the released model's recipe (one RTX 4090, about 10.5 h)</code></pre>
+      <h4>Use the released weights</h4>
+      <pre><code>uv run hf download kevinhenryz/realmimic --local-dir weights
+uv run python scripts/eval_benchmark.py --ckpt weights/realmimic_g1_86k.pt --npz-dir data/npz/bones_seed \
+    --clip-list data/bench/full.txt --num-envs 4096 --chunk-size 8192 --out runs/benchmark/release_full.json</code></pre>
+      <p class="sources">More in the README: <a href="https://github.com/kevinhenryzz/realmimic#quick-start" target="_blank" rel="noopener">Quick start</a> · <a href="https://github.com/kevinhenryzz/realmimic#data" target="_blank" rel="noopener">Data</a> · <a href="https://github.com/kevinhenryzz/realmimic#train-and-evaluate" target="_blank" rel="noopener">Train and evaluate</a> · <a href="https://github.com/kevinhenryzz/realmimic#deploy-sonic-runtime" target="_blank" rel="noopener">Deploy</a></p>
+    </section>
+
+    <section id="deviations">
+      <h2><span class="idx">05</span>Differences from the paper</h2>
+      <details class="fold" open><summary>Show the table</summary>
+      <div class="panel table-panel">
+        <table class="results dev">
+          <thead><tr><th>Item</th><th>Paper</th><th>Here</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Training GPU</td><td>one H100 80 GB (SXM5)</td><td>one RTX 4090 24 GB</td><td>what this reproduction tests</td></tr>
+            <tr><td>Policy batch</td><td>4096 world-model rollouts</td><td>2048</td><td>fits the 4090's 24 GB next to the motion library</td></tr>
+            <tr><td>Schedule</td><td>the paper's Table A.5</td><td>86k iterations, learning-rate decay over the first 69k</td><td>one 4090 in 10.5 h</td></tr>
+            <tr><td>Clips</td><td>129,514</td><td>129,491</td><td>the same filter on the current BONES-SEED release</td></tr>
+            <tr><td>Goal terms</td><td>the paper's</td><td>SONIC's goal terms</td><td>so the policy runs in SONIC's runtime</td></tr>
+            <tr><td>Practice sampling</td><td>not specified</td><td>count-aware estimate, pessimistic for unvisited pieces</td><td>see <a href="#findings">What we found</a></td></tr>
+            <tr><td>Clip ends</td><td>not specified</td><td>last frame held, rollouts reach it</td><td>see <a href="#findings">What we found</a></td></tr>
+            <tr><td>World-model frame</td><td>not specified</td><td>body frame</td><td>no singularity; no measured effect</td></tr>
+            <tr><td>Input scaling, fall detection</td><td>not specified</td><td>running input normalisation and LayerNorm; falls detected from the state</td><td>inherited from the reimplementation we started from</td></tr>
+            <tr><td>Self-collision</td><td>—</td><td>on</td><td>the robot's limbs can collide with each other</td></tr>
+          </tbody>
+        </table>
+      </div>
+      </details>
+      <p><strong>Motor gains.</strong> Training uses mjlab's default G1 model, with the hip-pitch motors (Unitree 7520-14) at stiffness kp ≈ 40, the low-gain setup the paper builds on; SONIC's runtime uses kp 99 on the same joints. The benchmark scores each policy under its own gains, as in the paper's Appendix F.1.</p>
+      <ul class="plain">
+        <li>Our evaluation counts about 1.2× more failures than the paper's for the same policy (SONIC: 218 vs 179).</li>
+        <li>As in the paper, the benchmark replays the clips the policy was trained on; LAFAN1 above measures motion it never saw.</li>
+      </ul>
+      <h3>Compute</h3>
+      <p class="note">The released model trains on one RTX 4090 in 10.5 hours. Developing and checking it took more; measured GPU-hours (wall-clock hours × GPUs, from the training and evaluation logs):</p>
+      <details class="fold" open><summary>Show the table</summary>
+      <div class="panel table-panel" id="res-compute"></div>
+      <p class="note" id="res-compute-excl"></p>
+      </details>
+    </section>
+
+    <section id="credits">
+      <h2><span class="idx">06</span>Credits, licences, citation</h2>
+      <ul>
+        <li>Training core: derived from <a href="https://github.com/YanYuan98/Supermimic_mod" target="_blank" rel="noopener">YanYuan98/Supermimic_mod</a>, a fork of <a href="https://github.com/CuboiLeo/SuperMimic-Reproduced" target="_blank" rel="noopener">CuboiLeo/SuperMimic-Reproduced</a> (MIT).</li>
+        <li>Method: SuperMimic, Q. Liao et al., CoRL 2026 (<a href="https://arxiv.org/abs/2610.28480" target="_blank" rel="noopener">arXiv:2610.28480</a>). This project is not affiliated with its authors.</li>
+        <li>Runtime: NVIDIA GR00T-WholeBodyControl / SONIC (Apache-2.0), used unforked; the release policy and planner weights are under the NVIDIA Open Model License and are downloaded by script.</li>
+        <li>Training data includes Motion Data by Bones Studio (<a href="https://bones.studio/" target="_blank" rel="noopener">https://bones.studio/</a>). Use of the underlying dataset is subject to the BONES Motion Capture Dataset License Agreement.</li>
+        <li>LAFAN1 (CC BY-NC-ND 4.0) is used for evaluation, never for training, and is never redistributed.</li>
+        <li>Robot model: Unitree G1 from <a href="https://github.com/mujocolab/mjlab" target="_blank" rel="noopener">mjlab</a> (Apache-2.0), based on Unitree Robotics' G1 description (BSD-3-Clause). BrainCo hand meshes: Unitree's <a href="https://github.com/unitreerobotics/unitree_ros" target="_blank" rel="noopener">unitree_ros</a> g1_with_brainco_hand model (BSD-3-Clause).</li>
+        <li>In the browser: <a href="https://github.com/google-deepmind/mujoco" target="_blank" rel="noopener">MuJoCo</a> (Apache-2.0), <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime Web</a> (MIT), <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a> (MIT), <a href="https://github.com/zeux/meshoptimizer" target="_blank" rel="noopener">meshoptimizer</a> (MIT). Versions and licences: <a href="vendor/README.md">vendor/README.md</a>.</li>
+        <li>Demo motions: authored for this page from the robot's default pose (<a href="https://github.com/kevinhenryzz/realmimic/blob/main/tools/web_author_motions.py" target="_blank" rel="noopener">tools/web_author_motions.py</a>), and retargeted to the G1 by us (<a href="https://github.com/kevinhenryzz/realmimic/blob/main/tools/web_retarget.py" target="_blank" rel="noopener">tools/web_retarget.py</a>) from openly licensed motion capture; per-clip sources in <a href="assets/motions/index.json">assets/motions/index.json</a>.</li>
+        <li>The data used in this project was obtained from <a href="http://mocap.cs.cmu.edu/" target="_blank" rel="noopener">mocap.cs.cmu.edu</a>. The database was created with funding from NSF EIA-0196217.</li>
+        <li>Walking styles: retargeted and trimmed from the <a href="https://doi.org/10.5281/zenodo.8127870" target="_blank" rel="noopener">100STYLE dataset</a> by Ian Mason, Sebastian Starke and Taku Komura (“Real-Time Style Modelling of Human Locomotion via Feature-Wise Transformations and Local Motion Phases”, 2022), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; changes: retargeted to the G1, foot sliding removed, 10 s excerpts with a short stop added at the end.</li>
+        <li>The RTX 4090 beside the title: site/assets/gpu/rtx4090.glb is <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a> by exéla (<a href="https://skfb.ly/oyBLN" target="_blank" rel="noopener">https://skfb.ly/oyBLN</a>), modified (lettering painted out, label turned upright, compressed); it is not covered by the repository's Apache-2.0 licence.</li>
+        <li>NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. This project is not affiliated with or endorsed by NVIDIA.</li>
+        <li>Code: Apache-2.0. Citation: <a href="https://github.com/kevinhenryzz/realmimic/blob/main/CITATION.cff" target="_blank" rel="noopener">CITATION.cff</a>.</li>
+        <li>Weights: <a href="https://huggingface.co/kevinhenryz/realmimic" target="_blank" rel="noopener">huggingface.co/kevinhenryz/realmimic</a> (CC BY-NC 4.0, in line with the non-commercial research scope of the BONES-SEED licence).</li>
+      </ul>
+      <h4>Cite</h4>
+      <pre><code>@software{henry2026realmimic,
+  author = {Henry, Kevin},
+  title  = {realmimic: a single-GPU reproduction of SuperMimic with deployment in NVIDIA's SONIC runtime},
+  year   = {2026},
+  url    = {https://github.com/kevinhenryzz/realmimic}
+}
+
+@article{liao2026supermimic,
+  author  = {Liao, Qiayuan and Shao, Yiyang and Long, Junfeng and Zakka, Kevin and Horowitz, Roberto and Abbeel, Pieter and Sreenath, Koushil},
+  title   = {SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model},
+  journal = {arXiv preprint arXiv:2610.28480},
+  year    = {2026}
+}</code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>realmimic · Kevin Henry</p>
+  </footer>
+</body>
+</html>

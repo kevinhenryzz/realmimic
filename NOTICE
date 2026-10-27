@@ -24,5 +24,20 @@ site/vendor/
   Third-party libraries fetched by tools/fetch_site_vendor.sh (three.js, MIT; MuJoCo WebAssembly,
   Apache-2.0; ONNX Runtime Web, MIT). Versions and licence texts: site/vendor/README.md.
 
+site/assets/gpu/rtx4090.glb (3D model of the GPU on the project page)
+  "GeForce RTX 4090 Founders Edition" by exéla (https://skfb.ly/oyBLN), CC BY-NC 4.0, modified (lettering
+  painted out, label turned upright, compressed). Not covered by this repository's Apache-2.0 licence.
+  NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation; this project is not affiliated with or endorsed
+  by NVIDIA.
+
+site/assets/motions/ (demo motions)
+  Retargeted from the CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu; created with funding from NSF
+  EIA-0196217) and the 100STYLE dataset (Ian Mason, Sebastian Starke, Taku Komura; CC BY 4.0). Per-clip sources:
+  site/assets/motions/index.json.
+
+Released model weights (Hugging Face, kevinhenryz/realmimic): CC BY-NC 4.0, not Apache-2.0. Training data includes
+Motion Data by Bones Studio (https://bones.studio/); use of the underlying dataset is subject to the BONES Motion
+Capture Dataset License Agreement.
+
 Method: SuperMimic (Q. Liao et al., CoRL 2026, arXiv:2610.28480). realmimic is an independent,
 unofficial implementation and is not affiliated with the authors.

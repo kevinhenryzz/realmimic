@@ -31,3 +31,9 @@ compile_commands.json
 .vscode/
 .idea/
 .DS_Store
+
+# Website: libraries and released model files are fetched at publish time
+# (tools/fetch_site_vendor.sh, tools/fetch_site_weights.sh), never committed
+/site/vendor/**
+!/site/vendor/README.md
+/site/assets/policy/

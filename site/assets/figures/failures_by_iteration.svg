@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 340" role="img" font-family="JetBrains Mono, ui-monospace, monospace" font-size="11">
+<title>Full-set failures against training iterations</title>
+<line x1="52" x2="1084" y1="296.0" y2="296.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="44" y="300.0" text-anchor="end" fill="#85888f">1</text>
+<line x1="52" x2="1084" y1="202.7" y2="202.7" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="44" y="206.7" text-anchor="end" fill="#85888f">10</text>
+<line x1="52" x2="1084" y1="109.3" y2="109.3" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="44" y="113.3" text-anchor="end" fill="#85888f">100</text>
+<line x1="52" x2="1084" y1="16.0" y2="16.0" stroke="#ffffff" stroke-opacity="0.08"/>
+<text x="44" y="20.0" text-anchor="end" fill="#85888f">1,000</text>
+<text x="52.0" y="314" text-anchor="middle" fill="#85888f">0k</text>
+<text x="239.6" y="314" text-anchor="middle" fill="#85888f">16k</text>
+<text x="427.3" y="314" text-anchor="middle" fill="#85888f">32k</text>
+<text x="614.9" y="314" text-anchor="middle" fill="#85888f">48k</text>
+<text x="802.5" y="314" text-anchor="middle" fill="#85888f">64k</text>
+<text x="990.2" y="314" text-anchor="middle" fill="#85888f">80k</text>
+<text x="568.0" y="334" text-anchor="middle" fill="#85888f">training iterations</text>
+<line class="ref" x1="52" x2="1084" y1="77.7" y2="77.7" stroke="#eceae6" stroke-opacity="0.55" stroke-dasharray="5 4"/>
+<text class="ref" x="1084" y="71.7" text-anchor="end" fill="#b8b9bd">SONIC release, the same evaluation: 218</text>
+<path class="series" style="--k:0" pathLength="1" d="M145.8,19.6 L239.6,125.0 L333.5,163.9 L427.3,186.2 L521.1,181.2 L614.9,189.0 L708.7,198.8 L802.5,223.4 L1037.1,211.7 L1060.5,202.7" fill="none" stroke="#ff6a1a" stroke-width="2.2"/>
+<circle class="pt" style="--k:0;--d:0.000" cx="145.8" cy="19.6" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.144" cx="239.6" cy="125.0" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.248" cx="333.5" cy="163.9" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.347" cx="427.3" cy="186.2" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.443" cx="521.1" cy="181.2" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.539" cx="614.9" cy="189.0" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.635" cx="708.7" cy="198.8" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.734" cx="802.5" cy="223.4" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:0.974" cx="1037.1" cy="211.7" r="3" fill="#ff6a1a"/>
+<circle class="pt" style="--k:0;--d:1.000" cx="1060.5" cy="202.7" r="3" fill="#ff6a1a"/>
+<text class="end" style="--k:0" x="1056.5" y="218.7" text-anchor="end" fill="#ff6a1a">10</text>
+<rect x="64" y="250" width="10" height="10" rx="2" fill="#ff6a1a"/>
+<text x="80" y="259" fill="#b8b9bd">realmimic, released</text>
+<path class="series" style="--k:1" pathLength="1" d="M145.8,58.3 L239.6,106.6 L333.5,174.6 L427.3,130.0 L521.1,186.2 L614.9,195.3 L708.7,181.2 L802.5,198.8 L896.4,202.7 L943.3,239.8 L990.2,202.7 L1014.8,198.8" fill="none" stroke="#8d96a3" stroke-width="2.2"/>
+<circle class="pt" style="--k:1;--d:0.000" cx="145.8" cy="58.3" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.110" cx="239.6" cy="106.6" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.231" cx="333.5" cy="174.6" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.340" cx="427.3" cy="130.0" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.454" cx="521.1" cy="186.2" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.552" cx="614.9" cy="195.3" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.651" cx="708.7" cy="181.2" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.751" cx="802.5" cy="198.8" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.849" cx="896.4" cy="202.7" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.911" cx="943.3" cy="239.8" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:0.974" cx="990.2" cy="202.7" r="3" fill="#8d96a3"/>
+<circle class="pt" style="--k:1;--d:1.000" cx="1014.8" cy="198.8" r="3" fill="#8d96a3"/>
+<text class="end" style="--k:1" x="1010.8" y="190.8" text-anchor="end" fill="#8d96a3">11</text>
+<rect x="64" y="268" width="10" height="10" rx="2" fill="#8d96a3"/>
+<text x="80" y="277" fill="#b8b9bd">same recipe, alternative reward shape</text>
+</svg>

@@ -1,0 +1,145 @@
+{
+ "released": {
+  "failed": 10,
+  "clips": 129491,
+  "return": 0.9545,
+  "last_three": {
+   "80000": 9,
+   "84000": 8,
+   "86000": 10
+  },
+  "training": "one RTX 4090 (24 GB), 10.5 h",
+  "scored_on": "RTX 6000 Ada"
+ },
+ "second_seed": {
+  "label": "same recipe, second seed (not released)",
+  "training": "one RTX 6000 Ada (identical configuration)",
+  "failed": 4,
+  "return": 0.954,
+  "last_three": {
+   "80000": 4,
+   "84000": 5,
+   "86000": 4
+  },
+  "scored_on": "RTX 6000 Ada"
+ },
+ "kernel_tail_run": {
+  "label": "same recipe, alternative reward shape",
+  "note": "No measurable difference at full scale (one training run each).",
+  "training": "one RTX 4090 (24 GB)",
+  "failed": 11,
+  "return": 0.9528,
+  "scored_on": "RTX 6000 Ada"
+ },
+ "sonic_release": {
+  "failed": 218,
+  "return": 0.875,
+  "scored_on": "RTX 5000 Ada"
+ },
+ "paper": {
+  "failed": 25,
+  "clips": 129514,
+  "sonic_failed": 179
+ },
+ "hardware_note": "Our runs were scored on an RTX 6000 Ada and SONIC's on an RTX 5000 Ada; we did not measure whether the GPU model changes the counts.",
+ "lafan1": {
+  "whole_clips": {
+   "clips": 40,
+   "ours": {
+    "failed": 13,
+    "return": 0.6641
+   },
+   "ours_seed1": {
+    "failed": 14,
+    "return": 0.667
+   },
+   "sonic_release": {
+    "failed": 13,
+    "return": 0.5998
+   }
+  },
+  "segments_10s": {
+   "clips": 882,
+   "ours": {
+    "failed": 35,
+    "return": 0.8279
+   },
+   "ours_seed1": {
+    "failed": 51,
+    "return": 0.8209
+   },
+   "sonic_release": {
+    "failed": 52,
+    "return": 0.7354
+   }
+  },
+  "note": "Tracking is closer in both seeds, and the failure count is in SONIC's range. Over whole clips the policy drifts in world position (its goal has no root-position term), so a single slip over minutes fails a clip; the segments measure tracking itself.",
+  "hardware_note": "Scored on an RTX 4090 (seed 0, SONIC) and an RTX 6000 Ada (seed 1)."
+ },
+ "practice_fix": {
+  "run 1": {
+   "old_estimate": 12,
+   "with_the_fix": 0
+  },
+  "run 2": {
+   "old_estimate": 5,
+   "with_the_fix": 0
+  }
+ },
+ "not_measurable": [
+  {
+   "title": "World-model coordinate frame",
+   "text": "The heading frame we inherited is singular when the pelvis points straight up or down, mid-flip; we use body-frame features instead. A full run with the heading frame reaches the same result (9 / 11 / 8 failures at 80k / 84k / 86k, tracking score 0.9540), within the spread between seeds: at this scale, the flips were decided by the sampling fix above."
+  },
+  {
+   "title": "A different shape for the tracking reward",
+   "text": "A linear tail added to the reward's Gaussian shape: 11 failures, tracking score 0.9528, against the released recipe's 10 and 0.9545. The released model uses the paper's shape."
+  }
+ ],
+ "compute": {
+  "rows": [
+   [
+    "Released model",
+    "one RTX 4090",
+    "10.5"
+   ],
+   [
+    "Second full-scale run (same recipe, alternative reward shape, not released)",
+    "one RTX 4090",
+    "11.0"
+   ],
+   [
+    "Other RTX 4090 runs: two early full-scale attempts, five robot fine-tunes",
+    "RTX 4090",
+    "12.4"
+   ],
+   [
+    "Experiments that chose the recipe",
+    "RTX 6000 Ada 48.4, RTX 5000 Ada 4.9",
+    "53.3"
+   ],
+   [
+    "Further robot fine-tunes, each with a second seed",
+    "RTX 6000 Ada",
+    "23.1"
+   ],
+   [
+    "Second seed (11.8) and a run with the heading frame (11.9)",
+    "one RTX 6000 Ada each",
+    "23.7"
+   ],
+   [
+    "Evaluations: full set and LAFAN1, including repeats",
+    "RTX 6000 Ada 38.4, RTX 5000 Ada 9.3",
+    "47.7"
+   ],
+   [
+    "Data and environment setup",
+    "RTX 6000 Ada, RTX 5000 Ada",
+    "1.7"
+   ]
+  ],
+  "total": "≈ 183",
+  "not_included": "Not included: benchmarks run alongside training on the same RTX 4090 (not metered separately) and the simulation deployment sessions (mostly CPU)."
+ }
+}

@@ -1,0 +1,138 @@
+{
+ "format": "realmimic-web-variant/1",
+ "robot": "g1_brainco",
+ "description": "G1 29-DoF rev 1.0 with BrainCo Revo 2 hands.",
+ "mass": 33.81675564,
+ "hide_meshes": [
+  "left_rubber_hand",
+  "right_rubber_hand"
+ ],
+ "geoms": [
+  {
+   "body": "left_wrist_yaw_link",
+   "mesh": "left_brainco_revo2_hand",
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "quat": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rgba": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "vert_count": 23081,
+   "face_count": 46438,
+   "pos_min": [
+    0.04149999842047691,
+    -0.02341068722307682,
+    -0.03921591863036156
+   ],
+   "pos_extent": [
+    0.18591775000095367,
+    0.043910689651966095,
+    0.15013156831264496
+   ],
+   "vertices": [
+    0,
+    113472
+   ],
+   "indices": [
+    113472,
+    56508
+   ]
+  },
+  {
+   "body": "right_wrist_yaw_link",
+   "mesh": "right_brainco_revo2_hand",
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "quat": [
+    1.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "rgba": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "vert_count": 23051,
+   "face_count": 46372,
+   "pos_min": [
+    0.04149999842047691,
+    -0.020500000566244125,
+    -0.03923005238175392
+   ],
+   "pos_extent": [
+    0.1859181523323059,
+    0.04392748698592186,
+    0.15086448192596436
+   ],
+   "vertices": [
+    169980,
+    113382
+   ],
+   "indices": [
+    283364,
+    56455
+   ]
+  }
+ ],
+ "geoms_note": "hand meshes from the hand URDF (open pose, measured mount), in meshes.bin; layout as visual.json",
+ "extras": [
+  {
+   "name": "left_hand_adapter",
+   "body": "left_wrist_yaw_link",
+   "type": "cylinder",
+   "pos": [
+    0.05450000000000001,
+    0.0,
+    0.0
+   ],
+   "quat": [
+    0.7071068,
+    0.0,
+    0.7071068,
+    0.0
+   ],
+   "size": [
+    0.026,
+    0.013000000000000001
+   ]
+  },
+  {
+   "name": "right_hand_adapter",
+   "body": "right_wrist_yaw_link",
+   "type": "cylinder",
+   "pos": [
+    0.05450000000000001,
+    0.0,
+    0.0
+   ],
+   "quat": [
+    0.7071068,
+    0.0,
+    0.7071068,
+    0.0
+   ],
+   "size": [
+    0.026,
+    0.013000000000000001
+   ]
+  }
+ ],
+ "extras_note": "stand-in shapes (no visual mesh): hand adapter rings, or hand collision capsules without hand meshes; payload boxes sized from spec sheets"
+}

@@ -1,0 +1,101 @@
+{
+ "note": "per video: generic caption; per pane (left, right): seconds at which the robot goes off track (the benchmark's failure) and falls, or null",
+ "videos": [
+  {
+   "file": "00.mp4",
+   "caption": "A flip with a hero landing",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 1.32,
+     "fell": 1.42
+    }
+   ]
+  },
+  {
+   "file": "01.mp4",
+   "caption": "A 360 flip",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 2.28,
+     "fell": 2.36
+    }
+   ]
+  },
+  {
+   "file": "02.mp4",
+   "caption": "A vogue dance drop",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 4.72,
+     "fell": 4.72
+    }
+   ]
+  },
+  {
+   "file": "03.mp4",
+   "caption": "A back-kick dance move",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 2.72,
+     "fell": 2.72
+    }
+   ]
+  },
+  {
+   "file": "04.mp4",
+   "caption": "A high jump",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 2.22,
+     "fell": 2.22
+    }
+   ]
+  },
+  {
+   "file": "05.mp4",
+   "caption": "A broad jump",
+   "panes": [
+    {
+     "label": "realmimic",
+     "off_track": null,
+     "fell": null
+    },
+    {
+     "label": "SONIC release",
+     "off_track": 4.42,
+     "fell": 4.42
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+{
+ "seconds": 21.56,
+ "cues": [
+  {
+   "start": 0.0,
+   "end": 4.76,
+   "caption": "flip, kneeling landing"
+  },
+  {
+   "start": 4.76,
+   "end": 8.56,
+   "caption": "pirouette"
+  },
+  {
+   "start": 8.56,
+   "end": 11.56,
+   "caption": "side flip"
+  },
+  {
+   "start": 11.56,
+   "end": 15.36,
+   "caption": "running man"
+  },
+  {
+   "start": 15.36,
+   "end": 17.96,
+   "caption": "360 flip"
+  },
+  {
+   "start": 17.96,
+   "end": 21.56,
+   "caption": "burpee"
+  }
+ ]
+}
