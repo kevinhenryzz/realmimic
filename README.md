@@ -1,5 +1,7 @@
 # realmimic: SuperMimic on one RTX 4090
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23682224.svg)](https://doi.org/10.5281/zenodo.23682224)
+
 **A whole-body motion tracker for the Unitree G1, trained on one RTX 4090 (24 GB) in 10.5 hours, and run through
 NVIDIA's SONIC deploy runtime.**
 
@@ -228,6 +230,29 @@ This software commands a humanoid robot. Run it with the robot on a gantry first
 (keyboard `O`, Ctrl-C) local to the robot, never across a relayed network. Never run it unattended. Under the
 BONES-SEED licence, policies trained on its data may not be used in hazardous environments requiring fail-safe
 performance.
+
+## Citation
+
+If you use realmimic, please cite it, and cite the SuperMimic paper for the method (also in `CITATION.cff`):
+
+```bibtex
+@software{henry2026realmimic,
+  author = {Henry, Kevin},
+  title  = {realmimic: a single-GPU reproduction of SuperMimic with deployment in NVIDIA's SONIC runtime},
+  year   = {2026},
+  doi    = {10.5281/zenodo.23682224},
+  url    = {https://github.com/kevinhenryzz/realmimic}
+}
+
+@article{liao2026supermimic,
+  author  = {Liao, Qiayuan and Shao, Yiyang and Long, Junfeng and Zakka, Kevin and Horowitz, Roberto and Abbeel, Pieter and Sreenath, Koushil},
+  title   = {SuperMimic: Scaling Humanoid Whole-Body Control with One Differentiable World Model},
+  journal = {arXiv preprint arXiv:2610.28480},
+  year    = {2026}
+}
+```
+
+The DOI above always resolves to the latest release; v1.0.0 itself is [10.5281/zenodo.23682225](https://doi.org/10.5281/zenodo.23682225).
 
 ## Credits and licences
 

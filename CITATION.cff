@@ -3,11 +3,20 @@ message: "If you use realmimic, please cite it as below, and cite the SuperMimic
 title: "realmimic: a single-GPU reproduction of SuperMimic with deployment in NVIDIA's SONIC runtime"
 type: software
 version: 1.0.0
+doi: 10.5281/zenodo.23682224
+date-released: 2026-10-27
 authors:
   - family-names: Henry
     given-names: Kevin
 repository-code: "https://github.com/kevinhenryzz/realmimic"
 license: Apache-2.0
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23682224
+    description: All versions (resolves to the latest release)
+  - type: doi
+    value: 10.5281/zenodo.23682225
+    description: Version 1.0.0
 keywords:
   - humanoid robotics
   - motion tracking
