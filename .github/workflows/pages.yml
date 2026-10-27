@@ -1,0 +1,44 @@
+# Publishes site/ to GitHub Pages on every push to main. The page's third-party libraries and the released model
+# files are not committed: they are fetched here, at pinned versions, and checked against the SHA-256 sums in
+# site/vendor/README.md and tools/fetch_site_weights.sh before anything is published.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the page's libraries (three.js, MuJoCo WebAssembly, ONNX Runtime Web)
+        run: tools/fetch_site_vendor.sh
+      - name: Fetch the released model files from Hugging Face
+        run: tools/fetch_site_weights.sh
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}  # needed only while the model repository is private
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
